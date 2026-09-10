@@ -13,6 +13,13 @@ __pycache__/
 # VS Code
 .vscode/
 
+# Unity
+Unity_DeepLearning/Library/
+Unity_DeepLearning/Temp/
+Unity_DeepLearning/Logs/
+Unity_DeepLearning/obj/
+Unity_DeepLearning/UserSettings/
+
 # OS / temporary files
 .DS_Store
 Thumbs.db
