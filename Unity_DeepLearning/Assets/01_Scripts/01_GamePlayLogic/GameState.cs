@@ -34,6 +34,7 @@ namespace DeepLearning.GameServer.GamePlayLogic
         private readonly Dictionary<int, int> _scores = new Dictionary<int, int>();
         private readonly Random _random = new Random();
         private readonly int _winScore;
+        private readonly int _itemCount;
 
         private int _nextPlayerId = 1;
         private int _currentRound = 1;
@@ -42,10 +43,11 @@ namespace DeepLearning.GameServer.GamePlayLogic
         private int _winnerPlayerId = -1;
         private int _answerIndex;
 
-        public GameState(int winScore)
+        public GameState(int winScore, int itemCount)
         {
             _winScore = Math.Max(1, winScore);
-            _answerIndex = _random.Next(0, 3);
+            _itemCount = Math.Max(1, itemCount);
+            _answerIndex = SelectAnswerIndex();
         }
 
         public int AddPlayer()
@@ -126,10 +128,15 @@ namespace DeepLearning.GameServer.GamePlayLogic
 
                 _currentRound++;
                 _roundFinished = false;
-                _answerIndex = _random.Next(0, 3);
+                _answerIndex = SelectAnswerIndex();
                 snapshot = CreateSnapshot();
                 return true;
             }
+        }
+
+        private int SelectAnswerIndex()
+        {
+            return _random.Next(0, _itemCount);
         }
 
         private GameStateSnapshot CreateSnapshot()

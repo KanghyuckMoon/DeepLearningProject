@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb8e04779993b5a3e800cb74c93dfc41, type: 3}
+  m_Name: ItemDataBase
+  m_EditorClassIdentifier: Assembly-CSharp::DeepLearning.GameData.DataBaseSO
+  items:
+  - sprite: {fileID: 4678970095107233946, guid: dc41c83dc0f2b8e81ab6846455d447a0, type: 3}
+    itemName: "\uB2C8\uD37C"
+  - sprite: {fileID: 3006085203380811258, guid: 078a1c79060e9fe77b179eb446b480ee, type: 3}
+    itemName: "\uD39C"
+  - sprite: {fileID: -2066490858881240167, guid: 2fd71649843e03514a738dd4176290ee, type: 3}
+    itemName: "\uC640\uC774\uC5B4 \uC2A4\uD2B8\uB798\uD37C"
