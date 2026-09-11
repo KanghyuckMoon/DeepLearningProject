@@ -59,6 +59,7 @@
     <Compile Include="Assets/Modern UI Pack/Scripts/Context Menu/ContextMenuSubMenu.cs" />
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/EnvMapAnimator.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Toggle/CustomToggle.cs" />
+    <Compile Include="Assets/01_Scripts/05_Graphic/DateTornado.cs" />
     <Compile Include="Assets/01_Scripts/02_Network/GameServerMono.cs" />
     <Compile Include="Assets/Modern UI Pack/Scripts/Dropdown/DropdownMultiSelect.cs" />
     <Compile Include="Assets/TextMesh Pro/Examples &amp; Extras/Scripts/TMP_TextSelector_A.cs" />
