@@ -636,6 +636,7 @@ GameObject:
   m_Component:
   - component: {fileID: 586416650}
   - component: {fileID: 586416651}
+  - component: {fileID: 586416652}
   m_Layer: 0
   m_Name: ImageRecognitionController
   m_TagString: Untagged
@@ -673,12 +674,28 @@ MonoBehaviour:
   gameClient: {fileID: 198273534}
   cameraFeed: {fileID: 222672649}
   itemDatabase: {fileID: 11400000, guid: bb1421a46f9a6a7efb08c8d024d452b6, type: 2}
-  classifierSource: {fileID: 0}
+  classifierSource: {fileID: 586416652}
   confidenceThreshold: 0.95
   requiredConsecutiveFrames: 20
   classificationInterval: 0
   enableKeyboardTest: 1
   detectionKey: 41
+--- !u!114 &586416652
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 586416649}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 01e162bd88426ff28a6d9539affaf96b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DeepLearning.GameClient.OnnxImageClassifierMono
+  itemDatabase: {fileID: 11400000, guid: bb1421a46f9a6a7efb08c8d024d452b6, type: 2}
+  backendType: 256
+  inputWidth: 128
+  inputHeight: 128
 --- !u!1 &647873356
 GameObject:
   m_ObjectHideFlags: 0
