@@ -36,7 +36,15 @@ namespace DeepLearning.GameServer.Network
                 ("player_id", playerId),
                 ("round", state.Round),
                 ("scores", state.Scores),
+                ("nicknames", state.Nicknames),
                 ("answer_index", state.AnswerIndex));
+        }
+
+        public static string ServerFull(int maxPlayers)
+        {
+            return Build(
+                ServerMessageType.ServerFull,
+                ("max_players", maxPlayers));
         }
 
         public static string PlayerJoined(int playerId, GameStateSnapshot state)
@@ -44,7 +52,20 @@ namespace DeepLearning.GameServer.Network
             return Build(
                 ServerMessageType.PlayerJoined,
                 ("player_id", playerId),
-                ("scores", state.Scores));
+                ("scores", state.Scores),
+                ("nicknames", state.Nicknames));
+        }
+
+        public static string PlayerUpdated(
+            int playerId,
+            string nickname,
+            GameStateSnapshot state)
+        {
+            return Build(
+                ServerMessageType.PlayerUpdated,
+                ("player_id", playerId),
+                ("nickname", nickname),
+                ("nicknames", state.Nicknames));
         }
 
         public static string PlayerLeft(int playerId, GameStateSnapshot state)
@@ -52,7 +73,8 @@ namespace DeepLearning.GameServer.Network
             return Build(
                 ServerMessageType.PlayerLeft,
                 ("player_id", playerId),
-                ("scores", state.Scores));
+                ("scores", state.Scores),
+                ("nicknames", state.Nicknames));
         }
 
         public static string GameState(GameStateSnapshot state)
@@ -61,6 +83,7 @@ namespace DeepLearning.GameServer.Network
                 ServerMessageType.GameState,
                 ("round", state.Round),
                 ("scores", state.Scores),
+                ("nicknames", state.Nicknames),
                 ("game_finished", state.GameFinished),
                 ("winner", state.WinnerPlayerId),
                 ("answer_index", state.AnswerIndex));
@@ -72,6 +95,7 @@ namespace DeepLearning.GameServer.Network
                 ServerMessageType.RoundStart,
                 ("round", state.Round),
                 ("scores", state.Scores),
+                ("nicknames", state.Nicknames),
                 ("answer_index", state.AnswerIndex));
         }
 
@@ -82,6 +106,7 @@ namespace DeepLearning.GameServer.Network
                 ("round", state.Round),
                 ("winner", winnerPlayerId),
                 ("scores", state.Scores),
+                ("nicknames", state.Nicknames),
                 ("answer_index", state.AnswerIndex));
         }
 
@@ -91,12 +116,26 @@ namespace DeepLearning.GameServer.Network
                 ServerMessageType.GameOver,
                 ("winner", winnerPlayerId),
                 ("round", state.Round),
-                ("scores", state.Scores));
+                ("scores", state.Scores),
+                ("nicknames", state.Nicknames));
         }
 
         public static string Pong()
         {
             return Build(ServerMessageType.Pong);
+        }
+
+        public static string CameraFrame(int playerId, ClientMessage message)
+        {
+            return Build(
+                ServerMessageType.CameraFrame,
+                ("player_id", playerId),
+                ("image", message.image),
+                ("width", message.width),
+                ("height", message.height),
+                ("rotation", message.rotation),
+                ("mirror_x", message.mirror_x),
+                ("flip_y", message.flip_y));
         }
 
         private static string Build(string type, params (string Key, object Value)[] fields)
@@ -129,6 +168,9 @@ namespace DeepLearning.GameServer.Network
                 case IReadOnlyDictionary<int, int> scores:
                     AppendScores(builder, scores);
                     break;
+                case IReadOnlyDictionary<int, string> nicknames:
+                    AppendNicknames(builder, nicknames);
+                    break;
                 default:
                     builder.Append('"').Append(Escape(value.ToString())).Append('"');
                     break;
@@ -152,6 +194,31 @@ namespace DeepLearning.GameServer.Network
                     .Append(score.Key.ToString(CultureInfo.InvariantCulture))
                     .Append("\":")
                     .Append(score.Value.ToString(CultureInfo.InvariantCulture));
+            }
+
+            builder.Append('}');
+        }
+
+        private static void AppendNicknames(
+            StringBuilder builder,
+            IReadOnlyDictionary<int, string> nicknames)
+        {
+            builder.Append('{');
+            bool first = true;
+
+            foreach (KeyValuePair<int, string> nickname in nicknames)
+            {
+                if (!first)
+                {
+                    builder.Append(',');
+                }
+
+                first = false;
+                builder.Append('"')
+                    .Append(nickname.Key.ToString(CultureInfo.InvariantCulture))
+                    .Append("\":\"")
+                    .Append(Escape(nickname.Value))
+                    .Append('"');
             }
 
             builder.Append('}');

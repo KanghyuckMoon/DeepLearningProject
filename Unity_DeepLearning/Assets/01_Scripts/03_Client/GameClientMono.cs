@@ -20,6 +20,7 @@ namespace DeepLearning.GameClient
         private readonly object _stateLock = new object();
         private readonly object _sendLock = new object();
         private readonly Dictionary<int, int> _scores = new Dictionary<int, int>();
+        private readonly Dictionary<int, string> _nicknames = new Dictionary<int, string>();
 
         private TcpClient _client;
         private StreamReader _reader;
@@ -134,6 +135,29 @@ namespace DeepLearning.GameClient
             return TrySend(ClientJsonProtocol.Ping());
         }
 
+        public bool SendCameraFrame(
+            byte[] jpegData,
+            int width,
+            int height,
+            int rotation,
+            bool mirrorHorizontally,
+            bool flipVertically)
+        {
+            if (jpegData == null || jpegData.Length == 0 || !IsConnected)
+            {
+                return false;
+            }
+
+            string imageBase64 = Convert.ToBase64String(jpegData);
+            return TrySend(ClientJsonProtocol.CameraFrame(
+                imageBase64,
+                width,
+                height,
+                rotation,
+                mirrorHorizontally,
+                flipVertically));
+        }
+
         private void ConnectAndReceive(int version)
         {
             try
@@ -159,6 +183,7 @@ namespace DeepLearning.GameClient
                         AutoFlush = true,
                         NewLine = "\n"
                     };
+                    _writer.WriteLine(ClientJsonProtocol.SetNickname(PlayerProfile.Nickname));
                 }
 
                 Interlocked.Exchange(ref _connected, 1);
@@ -205,6 +230,8 @@ namespace DeepLearning.GameClient
         {
             GameClientEventType eventType;
             int subjectPlayerId = -1;
+            string eventMessage = message.Type;
+            RemoteCameraFrame cameraFrame = null;
 
             lock (_stateLock)
             {
@@ -217,8 +244,52 @@ namespace DeepLearning.GameClient
                     }
                 }
 
+                if (message.Nicknames != null)
+                {
+                    _nicknames.Clear();
+                    foreach (KeyValuePair<int, string> nickname in message.Nicknames)
+                    {
+                        _nicknames[nickname.Key] = nickname.Value;
+                    }
+                }
+
                 switch (message.Type)
                 {
+                    case "server_full":
+                        eventType = GameClientEventType.Error;
+                        eventMessage = message.MaxPlayers > 0
+                            ? $"서버 정원이 가득 찼습니다. (최대 {message.MaxPlayers}명)"
+                            : "서버 정원이 가득 찼습니다.";
+                        break;
+
+                    case "camera_frame":
+                        try
+                        {
+                            byte[] jpegData = Convert.FromBase64String(message.ImageBase64 ?? string.Empty);
+                            cameraFrame = new RemoteCameraFrame(
+                                message.PlayerId,
+                                jpegData,
+                                message.ImageWidth,
+                                message.ImageHeight,
+                                message.Rotation,
+                                message.MirrorHorizontally,
+                                message.FlipVertically);
+                            eventType = GameClientEventType.CameraFrame;
+                            subjectPlayerId = message.PlayerId;
+                        }
+                        catch (FormatException)
+                        {
+                            eventType = GameClientEventType.Error;
+                            eventMessage = "잘못된 카메라 프레임을 수신했습니다.";
+                        }
+                        break;
+
+                    case "player_updated":
+                        eventType = GameClientEventType.PlayerUpdated;
+                        subjectPlayerId = message.PlayerId;
+                        eventMessage = message.Nickname;
+                        break;
+
                     case "connected":
                         _playerId = message.PlayerId;
                         SetRoundFields(message);
@@ -277,7 +348,7 @@ namespace DeepLearning.GameClient
                 }
             }
 
-            EnqueueEvent(eventType, subjectPlayerId, message.Type);
+            EnqueueEvent(eventType, subjectPlayerId, eventMessage, cameraFrame);
         }
 
         private void SetRoundFields(ServerMessage message)
@@ -350,6 +421,7 @@ namespace DeepLearning.GameClient
                     _playerId,
                     _currentRound,
                     new Dictionary<int, int>(_scores),
+                    new Dictionary<int, string>(_nicknames),
                     _answerIndex,
                     _roundWinner,
                     _gameWinner,
@@ -361,11 +433,17 @@ namespace DeepLearning.GameClient
         private void EnqueueEvent(
             GameClientEventType type,
             int subjectPlayerId = -1,
-            string message = null)
+            string message = null,
+            RemoteCameraFrame cameraFrame = null)
         {
             _mainThreadActions.Enqueue(() =>
             {
-                var clientEvent = new GameClientEvent(type, CreateSnapshot(), subjectPlayerId, message);
+                var clientEvent = new GameClientEvent(
+                    type,
+                    CreateSnapshot(),
+                    subjectPlayerId,
+                    message,
+                    cameraFrame);
 
                 if (type == GameClientEventType.Error)
                 {

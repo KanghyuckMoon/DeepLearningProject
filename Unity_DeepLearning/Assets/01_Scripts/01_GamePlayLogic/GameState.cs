@@ -32,6 +32,7 @@ namespace DeepLearning.GameServer.GamePlayLogic
     {
         private readonly object _syncRoot = new object();
         private readonly Dictionary<int, int> _scores = new Dictionary<int, int>();
+        private readonly Dictionary<int, string> _nicknames = new Dictionary<int, string>();
         private readonly Random _random = new Random();
         private readonly int _winScore;
         private readonly int _itemCount;
@@ -56,6 +57,7 @@ namespace DeepLearning.GameServer.GamePlayLogic
             {
                 int playerId = _nextPlayerId++;
                 _scores[playerId] = 0;
+                _nicknames[playerId] = $"Player {playerId}";
                 return playerId;
             }
         }
@@ -64,7 +66,30 @@ namespace DeepLearning.GameServer.GamePlayLogic
         {
             lock (_syncRoot)
             {
+                _nicknames.Remove(playerId);
                 return _scores.Remove(playerId);
+            }
+        }
+
+        public bool SetPlayerNickname(
+            int playerId,
+            string requestedNickname,
+            out string nickname,
+            out GameStateSnapshot snapshot)
+        {
+            lock (_syncRoot)
+            {
+                if (!_scores.ContainsKey(playerId))
+                {
+                    nickname = string.Empty;
+                    snapshot = CreateSnapshot();
+                    return false;
+                }
+
+                nickname = SanitizeNickname(requestedNickname, playerId);
+                _nicknames[playerId] = nickname;
+                snapshot = CreateSnapshot();
+                return true;
             }
         }
 
@@ -144,9 +169,35 @@ namespace DeepLearning.GameServer.GamePlayLogic
             return new GameStateSnapshot(
                 _currentRound,
                 new Dictionary<int, int>(_scores),
+                new Dictionary<int, string>(_nicknames),
                 _gameFinished,
                 _winnerPlayerId,
                 _answerIndex);
+        }
+
+        private string SanitizeNickname(string value, int playerId)
+        {
+            const int maxLength = 16;
+            string trimmed = string.IsNullOrWhiteSpace(value)
+                ? $"Player {playerId}"
+                : value.Trim();
+            var characters = new List<char>(maxLength);
+
+            foreach (char character in trimmed)
+            {
+                if (!char.IsControl(character))
+                {
+                    characters.Add(character);
+                }
+
+                if (characters.Count >= maxLength)
+                {
+                    break;
+                }
+            }
+
+            string nickname = new string(characters.ToArray()).Trim();
+            return string.IsNullOrEmpty(nickname) ? $"Player {playerId}" : nickname;
         }
     }
 }

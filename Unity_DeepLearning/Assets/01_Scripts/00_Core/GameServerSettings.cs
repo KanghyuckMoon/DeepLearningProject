@@ -15,6 +15,10 @@ namespace DeepLearning.GameServer.Core
         [Min(1)]
         public int winScore = 5;
 
+        [Min(1)]
+        [Tooltip("서버에 동시에 접속할 수 있는 최대 플레이어 수입니다.")]
+        public int maxPlayers = 4;
+
         [Min(0f)]
         [Tooltip("라운드 결과를 표시한 뒤 다음 라운드를 시작하기까지의 시간입니다.")]
         public float roundResultDelaySeconds = 1f;
@@ -28,6 +32,7 @@ namespace DeepLearning.GameServer.Core
 
             port = Mathf.Clamp(port, 1, 65535);
             winScore = Mathf.Max(1, winScore);
+            maxPlayers = Mathf.Max(1, maxPlayers);
             roundResultDelaySeconds = Mathf.Max(0f, roundResultDelaySeconds);
         }
     }

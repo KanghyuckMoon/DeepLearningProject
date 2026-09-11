@@ -17,6 +17,10 @@ namespace DeepLearning.GameServer.Network
 {
     public sealed class GameServerMono : MonoBehaviour
     {
+        private const int MaxCameraFrameWidth = 640;
+        private const int MaxCameraFrameHeight = 480;
+        private const int MaxCameraPayloadCharacters = 256000;
+
         [SerializeField] private GameServerSettings settings = new GameServerSettings();
         [SerializeField] private DataBaseSO itemDatabase;
         [SerializeField] private bool startOnAwake = true;
@@ -113,6 +117,7 @@ namespace DeepLearning.GameServer.Network
 
                 EnqueueLog(
                     $"게임 서버 시작 - IP: {settings.host}, PORT: {settings.port}, " +
+                    $"최대 인원: {settings.maxPlayers}명, " +
                     $"승리 조건: {settings.winScore}점, 아이템: {itemDatabase.Count}개");
 
                 GameStateSnapshot initialState = _gameState.GetSnapshot();
@@ -182,6 +187,12 @@ namespace DeepLearning.GameServer.Network
                     TcpClient client = _listener.AcceptTcpClient();
                     client.NoDelay = true;
 
+                    if (_clients.Count >= settings.maxPlayers)
+                    {
+                        RejectFullClient(client);
+                        continue;
+                    }
+
                     int playerId = _gameState.AddPlayer();
                     var connection = new ClientConnection(playerId, client);
 
@@ -218,6 +229,38 @@ namespace DeepLearning.GameServer.Network
                     }
                 }
             }
+        }
+
+        private void RejectFullClient(TcpClient client)
+        {
+            EndPoint remoteEndPoint = client.Client.RemoteEndPoint;
+
+            try
+            {
+                NetworkStream stream = client.GetStream();
+                var utf8 = new UTF8Encoding(false, true);
+
+                using (var writer = new StreamWriter(stream, utf8, 4096, true))
+                {
+                    writer.AutoFlush = true;
+                    writer.NewLine = "\n";
+                    writer.WriteLine(JsonLineProtocol.ServerFull(settings.maxPlayers));
+                }
+            }
+            catch (Exception exception) when (
+                exception is IOException ||
+                exception is SocketException ||
+                exception is ObjectDisposedException)
+            {
+                EnqueueLog($"정원 초과 응답 전송 실패 - 주소: {remoteEndPoint}, {exception.Message}", true);
+            }
+            finally
+            {
+                client.Dispose();
+            }
+
+            EnqueueLog(
+                $"접속 거절(서버 정원 {settings.maxPlayers}명 초과) - 주소: {remoteEndPoint}");
         }
 
         private void HandleClient(ClientConnection connection)
@@ -290,10 +333,51 @@ namespace DeepLearning.GameServer.Network
                     connection.Send(JsonLineProtocol.Pong());
                     break;
 
+                case ClientMessageType.CameraFrame:
+                    RelayCameraFrame(connection.PlayerId, message);
+                    break;
+
+                case ClientMessageType.SetNickname:
+                    HandleNickname(connection.PlayerId, message.nickname);
+                    break;
+
                 default:
                     EnqueueLog($"알 수 없는 메시지 Player {connection.PlayerId}: {message.type}");
                     break;
             }
+        }
+
+        private void HandleNickname(int playerId, string requestedNickname)
+        {
+            if (!_gameState.SetPlayerNickname(
+                    playerId,
+                    requestedNickname,
+                    out string nickname,
+                    out GameStateSnapshot state))
+            {
+                return;
+            }
+
+            EnqueueLog($"Player {playerId} 닉네임 설정: {nickname}");
+            Broadcast(JsonLineProtocol.PlayerUpdated(playerId, nickname, state));
+        }
+
+        private void RelayCameraFrame(int playerId, ClientMessage message)
+        {
+            bool invalidFrame = string.IsNullOrEmpty(message.image) ||
+                                message.image.Length > MaxCameraPayloadCharacters ||
+                                message.width <= 0 ||
+                                message.width > MaxCameraFrameWidth ||
+                                message.height <= 0 ||
+                                message.height > MaxCameraFrameHeight;
+
+            if (invalidFrame)
+            {
+                EnqueueLog($"Player {playerId} 카메라 프레임 거절: 잘못된 크기 또는 데이터", true);
+                return;
+            }
+
+            BroadcastExcept(playerId, JsonLineProtocol.CameraFrame(playerId, message));
         }
 
         private void HandleDetection(int playerId, int round)
@@ -360,6 +444,30 @@ namespace DeepLearning.GameServer.Network
         {
             foreach (ClientConnection connection in _clients.Values)
             {
+                try
+                {
+                    connection.Send(json);
+                }
+                catch (Exception exception) when (
+                    exception is IOException ||
+                    exception is SocketException ||
+                    exception is ObjectDisposedException)
+                {
+                    EnqueueLog($"Player {connection.PlayerId} 전송 실패: {exception.Message}", true);
+                    RemovePlayer(connection.PlayerId, true);
+                }
+            }
+        }
+
+        private void BroadcastExcept(int excludedPlayerId, string json)
+        {
+            foreach (ClientConnection connection in _clients.Values)
+            {
+                if (connection.PlayerId == excludedPlayerId)
+                {
+                    continue;
+                }
+
                 try
                 {
                     connection.Send(json);
