@@ -84,10 +84,35 @@ namespace DeepLearning.GameClient
 
             if (display != null)
             {
-                display.rectTransform.localEulerAngles = new Vector3(0f, 0f, -_texture.videoRotationAngle);
-                display.uvRect = mirrorHorizontally
-                    ? new Rect(1f, _texture.videoVerticallyMirrored ? 1f : 0f, -1f, _texture.videoVerticallyMirrored ? -1f : 1f)
-                    : new Rect(0f, _texture.videoVerticallyMirrored ? 1f : 0f, 1f, _texture.videoVerticallyMirrored ? -1f : 1f);
+                int rotation = _texture.videoRotationAngle;
+
+                // 카메라 회전 보정
+                display.rectTransform.localEulerAngles =
+                    new Vector3(0f, 0f, -rotation);
+
+                bool flipX = false;
+                bool flipY = _texture.videoVerticallyMirrored;
+
+                if (mirrorHorizontally)
+                {
+                    // 90도 / 270도 회전 상태에서는
+                    // 텍스처 Y축 반전이 화면 기준 좌우 반전이 됨
+                    if (rotation == 90 || rotation == 270)
+                    {
+                        flipY = !flipY;
+                    }
+                    else
+                    {
+                        flipX = true;
+                    }
+                }
+
+                display.uvRect = new Rect(
+                    flipX ? 1f : 0f,
+                    flipY ? 1f : 0f,
+                    flipX ? -1f : 1f,
+                    flipY ? -1f : 1f
+                );
             }
 
             TryShareCurrentFrame();
