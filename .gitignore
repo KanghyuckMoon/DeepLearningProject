@@ -23,6 +23,7 @@ Unity_DeepLearning/UserSettings/
 # OS / temporary files
 .DS_Store
 Thumbs.db
+:memory:.ses
 
 # Logs
 *.log
