@@ -35,6 +35,19 @@ namespace DeepLearning.GameClient
             new Dictionary<int, PlayerElement>();
         private readonly List<PlayerElement> _elements = new List<PlayerElement>();
 
+        public void ConfigureHudContainer(RectTransform hudContainer)
+        {
+            if (hudContainer != null)
+            {
+                container = hudContainer;
+                layoutCenter = Vector2.zero;
+                horizontalSpacing = 224f;
+                verticalSpacing = 220f;
+                collisionDiameter = 188f;
+                maxElementsPerRow = 4;
+            }
+        }
+
         private void Awake()
         {
             if (gameClient == null)
@@ -157,10 +170,27 @@ namespace DeepLearning.GameClient
                     continue;
                 }
 
-                pair.Value.Label.text = snapshot.Nicknames != null &&
-                                        snapshot.Nicknames.TryGetValue(pair.Key, out string nickname)
-                    ? nickname
+                string nickname = snapshot.Nicknames != null &&
+                                  snapshot.Nicknames.TryGetValue(pair.Key, out string foundNickname)
+                    ? foundNickname
                     : $"Player {pair.Key}";
+                int score = snapshot.Scores.TryGetValue(pair.Key, out int foundScore)
+                    ? foundScore
+                    : 0;
+                pair.Value.Label.text = $"{nickname}\n<b>{score}</b>점";
+
+                bool succeeded = snapshot.RoundWinner == pair.Key;
+                if (pair.Value.Outline != null)
+                {
+                    pair.Value.Outline.color = succeeded
+                        ? InGameHudViewMono.SuccessColor
+                        : Color.white;
+                }
+
+                if (pair.Value.Checkmark != null)
+                {
+                    pair.Value.Checkmark.gameObject.SetActive(succeeded);
+                }
             }
 
             RecalculateTargets();
@@ -198,6 +228,8 @@ namespace DeepLearning.GameClient
                 label.text = $"Player {playerId}";
             }
 
+            PrepareCasualThumbnail(rect, cameraImage, label, out Image outline, out TMP_Text checkmark);
+
             float side = playerId % 2 == 0 ? -1f : 1f;
             float halfWidth = Mathf.Max(500f, container.rect.width * 0.5f);
             rect.anchoredPosition = new Vector2(
@@ -212,7 +244,9 @@ namespace DeepLearning.GameClient
                 rect,
                 canvasGroup,
                 cameraImage,
-                label)
+                label,
+                outline,
+                checkmark)
             {
                 Velocity = new Vector2(-side * enterImpulse, 0f),
                 Scale = 0.72f,
@@ -221,6 +255,107 @@ namespace DeepLearning.GameClient
 
             _activeElements.Add(playerId, element);
             _elements.Add(element);
+        }
+
+        private static void PrepareCasualThumbnail(
+            RectTransform root,
+            Image cameraImage,
+            TMP_Text label,
+            out Image outline,
+            out TMP_Text checkmark)
+        {
+            outline = null;
+            checkmark = null;
+            if (root == null)
+            {
+                return;
+            }
+
+            Image rootImage = root.GetComponent<Image>();
+            Sprite circleSprite = rootImage != null ? rootImage.sprite : null;
+            Mask rootMask = root.GetComponent<Mask>();
+            if (rootMask != null)
+            {
+                rootMask.enabled = false;
+            }
+
+            if (rootImage != null)
+            {
+                rootImage.enabled = false;
+            }
+
+            Transform legacyOutline = root.Find("TargetOutline");
+            if (legacyOutline != null)
+            {
+                legacyOutline.gameObject.SetActive(false);
+            }
+
+            root.sizeDelta = new Vector2(196f, 248f);
+
+            var outlineObject = new GameObject("StateOutline", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            outlineObject.transform.SetParent(root, false);
+            outlineObject.transform.SetAsFirstSibling();
+            RectTransform outlineRect = (RectTransform)outlineObject.transform;
+            outlineRect.anchorMin = outlineRect.anchorMax = new Vector2(0.5f, 0.5f);
+            outlineRect.anchoredPosition = new Vector2(0f, 26f);
+            outlineRect.sizeDelta = new Vector2(180f, 180f);
+            outline = outlineObject.GetComponent<Image>();
+            outline.sprite = circleSprite;
+            outline.color = Color.white;
+            outline.raycastTarget = false;
+
+            var maskObject = new GameObject("CameraMask", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Mask));
+            maskObject.transform.SetParent(root, false);
+            RectTransform maskRect = (RectTransform)maskObject.transform;
+            maskRect.anchorMin = maskRect.anchorMax = new Vector2(0.5f, 0.5f);
+            maskRect.anchoredPosition = new Vector2(0f, 26f);
+            maskRect.sizeDelta = new Vector2(162f, 162f);
+            Image maskImage = maskObject.GetComponent<Image>();
+            maskImage.sprite = circleSprite;
+            maskImage.color = InGameHudViewMono.DarkColor;
+            maskImage.raycastTarget = false;
+            maskObject.GetComponent<Mask>().showMaskGraphic = true;
+
+            if (cameraImage != null)
+            {
+                cameraImage.transform.SetParent(maskRect, false);
+                RectTransform cameraRect = cameraImage.rectTransform;
+                cameraRect.anchorMin = Vector2.zero;
+                cameraRect.anchorMax = Vector2.one;
+                cameraRect.offsetMin = Vector2.zero;
+                cameraRect.offsetMax = Vector2.zero;
+            }
+
+            if (label != null)
+            {
+                label.transform.SetParent(root, false);
+                RectTransform labelRect = label.rectTransform;
+                labelRect.anchorMin = labelRect.anchorMax = new Vector2(0.5f, 0.5f);
+                labelRect.anchoredPosition = new Vector2(0f, -92f);
+                labelRect.sizeDelta = new Vector2(220f, 70f);
+                label.alignment = TextAlignmentOptions.Center;
+                label.enableAutoSizing = true;
+                label.fontSizeMin = 18f;
+                label.fontSizeMax = 26f;
+                label.color = InGameHudViewMono.DarkColor;
+                label.raycastTarget = false;
+            }
+
+            GameObject checkObject = new GameObject("SuccessCheck", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
+            checkObject.transform.SetParent(root, false);
+            RectTransform checkRect = (RectTransform)checkObject.transform;
+            checkRect.anchorMin = checkRect.anchorMax = new Vector2(0.5f, 0.5f);
+            checkRect.anchoredPosition = new Vector2(62f, 88f);
+            checkRect.sizeDelta = new Vector2(54f, 54f);
+            checkmark = checkObject.GetComponent<TextMeshProUGUI>();
+            checkmark.font = label != null ? label.font : null;
+            checkmark.text = "✓";
+            checkmark.fontSize = 42f;
+            checkmark.fontStyle = FontStyles.Bold;
+            checkmark.alignment = TextAlignmentOptions.Center;
+            checkmark.color = InGameHudViewMono.DarkColor;
+            checkmark.raycastTarget = false;
+            checkObject.SetActive(false);
         }
 
         private void BeginExit(int playerId)
@@ -484,7 +619,9 @@ namespace DeepLearning.GameClient
                 RectTransform rect,
                 CanvasGroup canvasGroup,
                 Image cameraImage,
-                TMP_Text label)
+                TMP_Text label,
+                Image outline,
+                TMP_Text checkmark)
             {
                 PlayerId = playerId;
                 Instance = instance;
@@ -492,6 +629,8 @@ namespace DeepLearning.GameClient
                 CanvasGroup = canvasGroup;
                 CameraImage = cameraImage;
                 Label = label;
+                Outline = outline;
+                Checkmark = checkmark;
                 Target = rect.anchoredPosition;
             }
 
@@ -501,6 +640,8 @@ namespace DeepLearning.GameClient
             public CanvasGroup CanvasGroup { get; }
             public Image CameraImage { get; }
             public TMP_Text Label { get; }
+            public Image Outline { get; }
+            public TMP_Text Checkmark { get; }
             public Vector2 Target { get; set; }
             public Vector2 Velocity { get; set; }
             public float Scale { get; set; }

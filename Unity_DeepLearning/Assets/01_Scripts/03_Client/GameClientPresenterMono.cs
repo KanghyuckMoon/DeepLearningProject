@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
 using DeepLearning.GameData;
 using TMPro;
 using UnityEngine;
@@ -21,6 +20,8 @@ namespace DeepLearning.GameClient
         [SerializeField] private TMP_Text targetNameText;
         [SerializeField] private Image targetImage;
 
+        private InGameHudViewMono _hud;
+
         [Header("Remote Cameras")]
         [Tooltip("비워 두면 Player로 시작하는 Mask의 TargetImage를 자동으로 사용합니다.")]
         [SerializeField] private Image[] remoteCameraImages;
@@ -35,6 +36,36 @@ namespace DeepLearning.GameClient
         private readonly List<RemoteCameraSlot> _remoteCameraSlots =
             new List<RemoteCameraSlot>();
 
+        private void Awake()
+        {
+            _hud = GetComponent<InGameHudViewMono>();
+            if (_hud == null)
+            {
+                _hud = gameObject.AddComponent<InGameHudViewMono>();
+            }
+
+            _hud.Initialize(gameInfoText, centerText, aiInfoText, targetNameText, targetImage);
+
+            if (noticePanel != null)
+            {
+                noticePanel.transform.SetAsLastSibling();
+            }
+
+            PlayerUIRosterMono roster = GetComponent<PlayerUIRosterMono>();
+            if (roster != null)
+            {
+                roster.ConfigureHudContainer(_hud.RemotePlayerContainer);
+            }
+        }
+
+        public void InitializeHudPreview(InGameHudViewMono hud)
+        {
+            if (hud != null)
+            {
+                hud.Initialize(gameInfoText, centerText, aiInfoText, targetNameText, targetImage);
+            }
+        }
+
         private void OnEnable()
         {
             if (gameClient != null)
@@ -44,7 +75,7 @@ namespace DeepLearning.GameClient
 
             if (centerText != null)
             {
-                centerText.text = "물건을 찾아라";
+                centerText.text = "물건을 찾아라!";
             }
 
             Refresh(gameClient != null ? gameClient.Snapshot : null);
@@ -67,14 +98,9 @@ namespace DeepLearning.GameClient
                 noticePanel.SetActive(false);
             }
 
-            if (aiInfoText != null && recognition != null)
+            if (_hud != null)
             {
-                ClassificationResult prediction = recognition.LastResult;
-                aiInfoText.text =
-                    $"Target : {recognition.TargetLabel}\n" +
-                    $"AI : {prediction.Label}\n" +
-                    $"Confidence : {prediction.Confidence * 100f:F1}%\n" +
-                    $"Correct : {recognition.CorrectCount}/{recognition.RequiredCount}";
+                _hud.RefreshRecognition(recognition, gameClient != null ? gameClient.Snapshot : null);
             }
         }
 
@@ -132,30 +158,6 @@ namespace DeepLearning.GameClient
                 return;
             }
 
-            if (gameInfoText != null)
-            {
-                var builder = new StringBuilder();
-                builder.Append("Round : ").Append(snapshot.Round);
-
-                var playerIds = new List<int>(snapshot.Scores.Keys);
-                playerIds.Sort();
-
-                foreach (int playerId in playerIds)
-                {
-                    builder.Append('\n')
-                        .Append(GetNickname(snapshot, playerId));
-
-                    if (playerId == snapshot.PlayerId)
-                    {
-                        builder.Append(" (나)");
-                    }
-
-                    builder.Append(" : ").Append(snapshot.Scores[playerId]);
-                }
-
-                gameInfoText.text = builder.ToString();
-            }
-
             ItemData targetItem = null;
             bool hasTarget = itemDatabase != null &&
                              itemDatabase.TryGetItem(snapshot.AnswerIndex, out targetItem);
@@ -173,7 +175,15 @@ namespace DeepLearning.GameClient
 
             if (centerText != null)
             {
-                centerText.text = hasTarget ? $"{targetItem.Name}을(를) 찾아라" : "물건을 찾아라";
+                centerText.text = "물건을 찾아라!";
+            }
+
+            if (_hud != null)
+            {
+                _hud.RefreshSnapshot(
+                    snapshot,
+                    hasTarget ? targetItem.Sprite : null,
+                    hasTarget ? targetItem.Name : string.Empty);
             }
         }
 
