@@ -18,6 +18,8 @@ namespace DeepLearning.GameClient
         [Tooltip("목표 물건의 인식률 100%가 유지되어야 하는 시간입니다.")]
         [SerializeField, Min(0.1f)] private float fullConfidenceHoldSeconds = 0.5f;
         [SerializeField, Min(0f)] private float classificationInterval;
+        [Tooltip("새 라운드가 시작된 뒤 AI 인식을 다시 시작하기까지 기다리는 시간입니다.")]
+        [SerializeField, Min(0f)] private float recognitionResumeDelaySeconds = 0.5f;
 
         [Header("Test")]
         [SerializeField] private bool enableKeyboardTest = true;
@@ -28,10 +30,13 @@ namespace DeepLearning.GameClient
         private float _fullConfidenceStartedAt = -1f;
         private float _holdProgress;
         private float _nextClassificationTime;
+        private float _resumeRecognitionAt = -1f;
+        private bool _recognitionPaused;
         private ClassificationResult _lastResult;
 
         public int CorrectCount => _correctCount;
         public float HoldProgress => _holdProgress;
+        public bool IsRecognitionPaused => _recognitionPaused;
         public ClassificationResult LastResult => _lastResult;
         public float TargetConfidence
         {
@@ -86,6 +91,18 @@ namespace DeepLearning.GameClient
 
         private void Update()
         {
+            if (_recognitionPaused)
+            {
+                if (_resumeRecognitionAt < 0f || Time.unscaledTime < _resumeRecognitionAt)
+                {
+                    return;
+                }
+
+                _recognitionPaused = false;
+                _resumeRecognitionAt = -1f;
+                _nextClassificationTime = Time.unscaledTime;
+            }
+
             if (enableKeyboardTest &&
                 Keyboard.current != null &&
                 Keyboard.current[detectionKey].wasPressedThisFrame)
@@ -153,12 +170,28 @@ namespace DeepLearning.GameClient
 
         private void HandleClientEvent(GameClientEvent clientEvent)
         {
-            if (clientEvent.Type == GameClientEventType.RoundStarted ||
-                clientEvent.Type == GameClientEventType.GameOver ||
-                clientEvent.Type == GameClientEventType.Disconnected)
+            switch (clientEvent.Type)
             {
-                ResetRecognition();
+                case GameClientEventType.Connected:
+                case GameClientEventType.RoundStarted:
+                    PauseRecognition(recognitionResumeDelaySeconds);
+                    break;
+
+                case GameClientEventType.RoundResult:
+                case GameClientEventType.GameOver:
+                case GameClientEventType.Disconnected:
+                    PauseRecognition(-1f);
+                    break;
             }
+        }
+
+        private void PauseRecognition(float resumeDelaySeconds)
+        {
+            ResetRecognition();
+            _recognitionPaused = true;
+            _resumeRecognitionAt = resumeDelaySeconds >= 0f
+                ? Time.unscaledTime + resumeDelaySeconds
+                : -1f;
         }
 
         private void ResetRecognition()

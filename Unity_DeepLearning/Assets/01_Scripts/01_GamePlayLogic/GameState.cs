@@ -153,15 +153,27 @@ namespace DeepLearning.GameServer.GamePlayLogic
 
                 _currentRound++;
                 _roundFinished = false;
-                _answerIndex = SelectAnswerIndex();
+                _answerIndex = SelectAnswerIndex(_answerIndex);
                 snapshot = CreateSnapshot();
                 return true;
             }
         }
 
-        private int SelectAnswerIndex()
+        private int SelectAnswerIndex(int excludedIndex = -1)
         {
-            return _random.Next(0, _itemCount);
+            if (_itemCount <= 1)
+            {
+                return 0;
+            }
+
+            if (excludedIndex < 0 || excludedIndex >= _itemCount)
+            {
+                return _random.Next(0, _itemCount);
+            }
+
+            // 직전 인덱스를 제외한 범위에서 균등하게 선택합니다.
+            int selectedIndex = _random.Next(0, _itemCount - 1);
+            return selectedIndex >= excludedIndex ? selectedIndex + 1 : selectedIndex;
         }
 
         private GameStateSnapshot CreateSnapshot()

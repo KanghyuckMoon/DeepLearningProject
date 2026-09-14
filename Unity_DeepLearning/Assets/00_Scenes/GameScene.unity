@@ -1813,6 +1813,7 @@ MonoBehaviour:
   classifierSource: {fileID: 586416652}
   fullConfidenceHoldSeconds: 0.5
   classificationInterval: 0
+  recognitionResumeDelaySeconds: 0.5
   enableKeyboardTest: 1
   detectionKey: 41
 --- !u!114 &586416652
@@ -4584,8 +4585,8 @@ RectTransform:
   - {fileID: 1263225630}
   m_Father: {fileID: 938197772}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 1, y: 1}
+  m_AnchorMin: {x: 0, y: 0.094444446}
+  m_AnchorMax: {x: 0.66875, y: 2.4416666}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}

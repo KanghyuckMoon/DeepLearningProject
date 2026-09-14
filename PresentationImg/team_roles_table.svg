@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <rect width="1600" height="900" fill="#F7F9FC"/>
+
+  <rect x="92" y="76" width="12" height="82" rx="6" fill="#19A7A0"/>
+  <text x="134" y="137" font-family="Noto Sans CJK KR, NanumGothic, sans-serif"
+        font-size="58" font-weight="700" fill="#12304A">팀원 담당 업무</text>
+
+  <rect x="92" y="210" width="1416" height="556" rx="22" fill="#FFFFFF"
+        stroke="#D5DEE8" stroke-width="3"/>
+
+  <path d="M114 210 H1486 Q1508 210 1508 232 V318 H92 V232 Q92 210 114 210Z" fill="#173B59"/>
+  <line x1="405" y1="210" x2="405" y2="766" stroke="#D5DEE8" stroke-width="3"/>
+  <line x1="92" y1="318" x2="1508" y2="318" stroke="#D5DEE8" stroke-width="3"/>
+  <line x1="92" y1="542" x2="1508" y2="542" stroke="#D5DEE8" stroke-width="3"/>
+
+  <rect x="95" y="321" width="307" height="218" fill="#E8F7F5"/>
+  <rect x="95" y="545" width="307" height="218" fill="#EFF4F9"/>
+
+  <text x="248" y="278" text-anchor="middle"
+        font-family="Noto Sans CJK KR, NanumGothic, sans-serif" font-size="38"
+        font-weight="700" fill="#FFFFFF">팀원</text>
+  <text x="957" y="278" text-anchor="middle"
+        font-family="Noto Sans CJK KR, NanumGothic, sans-serif" font-size="38"
+        font-weight="700" fill="#FFFFFF">담당 업무</text>
+
+  <circle cx="176" cy="430" r="42" fill="#19A7A0"/>
+  <text x="176" y="443" text-anchor="middle"
+        font-family="Noto Sans CJK KR, NanumGothic, sans-serif" font-size="28"
+        font-weight="700" fill="#FFFFFF">박</text>
+  <text x="282" y="444" text-anchor="middle"
+        font-family="Noto Sans CJK KR, NanumGothic, sans-serif" font-size="40"
+        font-weight="700" fill="#12304A">박주하</text>
+
+  <text x="455" y="392"
+        font-family="Noto Sans CJK KR, NanumGothic, sans-serif" font-size="36"
+        font-weight="600" fill="#17233C">
+    <tspan x="455" dy="0">데이터 준비</tspan>
+    <tspan x="455" dy="58">CNN 모델 설계 및 학습</tspan>
+    <tspan x="455" dy="58">학습 결과 분석</tspan>
+  </text>
+
+  <circle cx="176" cy="654" r="42" fill="#F08A61"/>
+  <text x="176" y="667" text-anchor="middle"
+        font-family="Noto Sans CJK KR, NanumGothic, sans-serif" font-size="28"
+        font-weight="700" fill="#FFFFFF">문</text>
+  <text x="282" y="668" text-anchor="middle"
+        font-family="Noto Sans CJK KR, NanumGothic, sans-serif" font-size="40"
+        font-weight="700" fill="#12304A">문강혁</text>
+
+  <text x="455" y="594"
+        font-family="Noto Sans CJK KR, NanumGothic, sans-serif" font-size="36"
+        font-weight="600" fill="#17233C">
+    <tspan x="455" dy="0">Unity 프로젝트 개발</tspan>
+    <tspan x="455" dy="58">ONNX 변환 및 Unity 연동</tspan>
+    <tspan x="455" dy="58">게임 구현</tspan>
+  </text>
+
+  <text x="92" y="832" font-family="Noto Sans CJK KR, NanumGothic, sans-serif"
+        font-size="24" fill="#68788A">딥러닝 모델 개발과 Unity 응용 개발을 역할별로 분담</text>
+</svg>
