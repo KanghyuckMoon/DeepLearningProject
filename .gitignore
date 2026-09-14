@@ -1,38 +1,15 @@
-# Python virtual environment
-.venv/
-venv/
-env/
-
-# Python cache
+# Python
 __pycache__/
-*.py[cod]
+*.pyc
 
-# Jupyter
-.ipynb_checkpoints/
+# Virtual environment
+.venv/
 
-# VS Code
-.vscode/
+# YOLO / PyTorch model files
+*.pt
 
-# Unity
-Unity_DeepLearning/Library/
-Unity_DeepLearning/Temp/
-Unity_DeepLearning/Logs/
-Unity_DeepLearning/obj/
-Unity_DeepLearning/UserSettings/
+# YOLO training results
+runs/
 
-# OS / temporary files
-.DS_Store
-Thumbs.db
-:memory:.ses
-
-# Logs
-*.log
-
-# Python packaging
-build/
-dist/
-*.egg-info/
-
-# Environment variables / secrets
-.env
-.env.*
+# Temporary download files
+*.part
