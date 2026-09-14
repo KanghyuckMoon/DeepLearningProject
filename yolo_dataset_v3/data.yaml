@@ -1,0 +1,11 @@
+path: /home/user14/Documents/GitHub/DeepLearningProject/yolo_dataset_v2
+train: images/train
+val: images/val
+test: images/test
+
+nc: 3
+
+names:
+  0: nipper
+  1: pen
+  2: wire_stripper
