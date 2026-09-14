@@ -2,9 +2,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using DeepLearning.GameServer.Core;
 using UnityEngine;
 
 namespace DeepLearning.GameClient
@@ -12,8 +14,11 @@ namespace DeepLearning.GameClient
     public sealed class GameClientMono : MonoBehaviour
     {
         [Header("Server")]
-        [SerializeField] private string serverIp = "10.10.59.205";
+        [Tooltip("auto이면 같은 네트워크에서 서버를 자동으로 찾습니다.")]
+        [SerializeField] private string serverIp = "auto";
         [SerializeField, Min(1)] private int port = 5000;
+        [SerializeField, Min(1)] private int discoveryPort = 5001;
+        [SerializeField, Range(0.2f, 10f)] private float discoveryTimeoutSeconds = 2f;
         [SerializeField] private bool connectOnStart = true;
 
         private readonly ConcurrentQueue<Action> _mainThreadActions = new ConcurrentQueue<Action>();
@@ -75,7 +80,23 @@ namespace DeepLearning.GameClient
             }
 
             int version = Interlocked.Increment(ref _connectionVersion);
-            _receiveThread = new Thread(() => ConnectAndReceive(version))
+            // PlayerPrefs와 직렬화 필드는 Unity 메인 스레드에서만 읽고,
+            // 네트워크 스레드에는 순수 CLR 값만 전달합니다.
+            string nickname = PlayerProfile.Nickname;
+            string configuredServerIp = serverIp;
+            int configuredPort = port;
+            int configuredDiscoveryPort = discoveryPort;
+            int discoveryTimeoutMilliseconds = Math.Max(
+                200,
+                (int)Math.Round(discoveryTimeoutSeconds * 1000d));
+
+            _receiveThread = new Thread(() => ConnectAndReceive(
+                version,
+                nickname,
+                configuredServerIp,
+                configuredPort,
+                configuredDiscoveryPort,
+                discoveryTimeoutMilliseconds))
             {
                 IsBackground = true,
                 Name = "GameClient.Receive"
@@ -158,12 +179,24 @@ namespace DeepLearning.GameClient
                 flipVertically));
         }
 
-        private void ConnectAndReceive(int version)
+        private void ConnectAndReceive(
+            int version,
+            string nickname,
+            string configuredServerIp,
+            int configuredPort,
+            int configuredDiscoveryPort,
+            int discoveryTimeoutMilliseconds)
         {
             try
             {
+                string targetHost = ResolveServerHost(
+                    configuredServerIp,
+                    configuredPort,
+                    configuredDiscoveryPort,
+                    discoveryTimeoutMilliseconds,
+                    out int targetPort);
                 var client = new TcpClient { NoDelay = true };
-                client.Connect(serverIp, port);
+                client.Connect(targetHost, targetPort);
 
                 if (version != Volatile.Read(ref _connectionVersion))
                 {
@@ -183,7 +216,7 @@ namespace DeepLearning.GameClient
                         AutoFlush = true,
                         NewLine = "\n"
                     };
-                    _writer.WriteLine(ClientJsonProtocol.SetNickname(PlayerProfile.Nickname));
+                    _writer.WriteLine(ClientJsonProtocol.SetNickname(nickname));
                 }
 
                 Interlocked.Exchange(ref _connected, 1);
@@ -224,6 +257,45 @@ namespace DeepLearning.GameClient
                     EnqueueEvent(GameClientEventType.Disconnected, message: "서버 연결 종료");
                 }
             }
+        }
+
+        private static string ResolveServerHost(
+            string configuredServerIp,
+            int configuredPort,
+            int configuredDiscoveryPort,
+            int discoveryTimeoutMilliseconds,
+            out int targetPort)
+        {
+            targetPort = configuredPort;
+            if (!string.IsNullOrWhiteSpace(configuredServerIp) &&
+                !configuredServerIp.Equals("auto", StringComparison.OrdinalIgnoreCase))
+            {
+                return configuredServerIp.Trim();
+            }
+
+            using var discoveryClient = new UdpClient(AddressFamily.InterNetwork);
+            discoveryClient.EnableBroadcast = true;
+            discoveryClient.Client.ReceiveTimeout = discoveryTimeoutMilliseconds;
+
+            byte[] request = Encoding.UTF8.GetBytes(GameServerSettings.DiscoveryRequest);
+            discoveryClient.Send(
+                request,
+                request.Length,
+                new IPEndPoint(IPAddress.Broadcast, configuredDiscoveryPort));
+
+            var serverEndpoint = new IPEndPoint(IPAddress.Any, 0);
+            byte[] response = discoveryClient.Receive(ref serverEndpoint);
+            string message = Encoding.UTF8.GetString(response);
+            if (!message.StartsWith(GameServerSettings.DiscoveryResponsePrefix, StringComparison.Ordinal) ||
+                !int.TryParse(
+                    message.Substring(GameServerSettings.DiscoveryResponsePrefix.Length),
+                    out int discoveredPort))
+            {
+                throw new SocketException((int)SocketError.HostNotFound);
+            }
+
+            targetPort = discoveredPort;
+            return serverEndpoint.Address.ToString();
         }
 
         private void ApplyServerMessage(ServerMessage message)

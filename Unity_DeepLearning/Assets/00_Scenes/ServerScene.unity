@@ -437,8 +437,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DeepLearning.GameServer.Network.GameServerMono
   settings:
-    host: 10.10.59.205
+    host: 0.0.0.0
     port: 5000
+    discoveryPort: 5001
     winScore: 5
     roundResultDelaySeconds: 1
   itemDatabase: {fileID: 11400000, guid: bb1421a46f9a6a7efb08c8d024d452b6, type: 2}

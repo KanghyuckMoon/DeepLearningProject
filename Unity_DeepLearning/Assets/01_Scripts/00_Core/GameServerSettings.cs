@@ -6,11 +6,18 @@ namespace DeepLearning.GameServer.Core
     [Serializable]
     public sealed class GameServerSettings
     {
+        public const string DiscoveryRequest = "DEEP_LEARNING_SERVER_DISCOVERY_V1";
+        public const string DiscoveryResponsePrefix = "DEEP_LEARNING_SERVER_V1:";
+
         [Tooltip("서버가 바인딩할 IPv4 주소입니다. 모든 네트워크 인터페이스를 사용하려면 0.0.0.0을 입력하세요.")]
-        public string host = "10.10.59.205";
+        public string host = "0.0.0.0";
 
         [Min(1)]
         public int port = 5000;
+
+        [Min(1)]
+        [Tooltip("같은 네트워크의 클라이언트가 서버를 자동 검색할 때 사용하는 UDP 포트입니다.")]
+        public int discoveryPort = 5001;
 
         [Min(1)]
         public int winScore = 5;
@@ -31,6 +38,7 @@ namespace DeepLearning.GameServer.Core
             }
 
             port = Mathf.Clamp(port, 1, 65535);
+            discoveryPort = Mathf.Clamp(discoveryPort, 1, 65535);
             winScore = Mathf.Max(1, winScore);
             maxPlayers = Mathf.Max(1, maxPlayers);
             roundResultDelaySeconds = Mathf.Max(0f, roundResultDelaySeconds);

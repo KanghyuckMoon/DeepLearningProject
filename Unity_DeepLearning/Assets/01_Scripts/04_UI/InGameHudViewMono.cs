@@ -133,13 +133,15 @@ namespace DeepLearning.GameClient
             }
 
             float confidence = recognition != null
-                ? Mathf.Clamp01(recognition.LastResult.Confidence)
+                ? recognition.TargetConfidence
                 : 0f;
             _confidenceFill.fillAmount = confidence;
+            float holdProgress = recognition != null ? recognition.HoldProgress : 0f;
+            _confidenceFill.color = Color.Lerp(TealColor, DetectingColor, holdProgress);
             _confidenceText.text = $"<size=25>인식 정확도</size>\n<b>{confidence * 100f:0}%</b>";
 
             bool succeeded = snapshot != null && snapshot.RoundWinner == snapshot.PlayerId;
-            bool detecting = !succeeded && recognition != null && recognition.CorrectCount > 0;
+            bool detecting = !succeeded && holdProgress > 0f;
 
             if (succeeded)
             {

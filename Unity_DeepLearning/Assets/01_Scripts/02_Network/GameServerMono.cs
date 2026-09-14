@@ -37,6 +37,8 @@ namespace DeepLearning.GameServer.Network
         private CancellationTokenSource _shutdown;
         private TcpListener _listener;
         private Thread _acceptThread;
+        private UdpClient _discoverySocket;
+        private Thread _discoveryThread;
         private GameState _gameState;
         private int _isRunning;
 
@@ -107,6 +109,7 @@ namespace DeepLearning.GameServer.Network
                 _listener = new TcpListener(address, settings.port);
                 _listener.Server.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
                 _listener.Start();
+                StartDiscoveryResponder();
 
                 _acceptThread = new Thread(AcceptClients)
                 {
@@ -117,6 +120,7 @@ namespace DeepLearning.GameServer.Network
 
                 EnqueueLog(
                     $"게임 서버 시작 - IP: {settings.host}, PORT: {settings.port}, " +
+                    $"검색 PORT: {settings.discoveryPort}, " +
                     $"최대 인원: {settings.maxPlayers}명, " +
                     $"승리 조건: {settings.winScore}점, 아이템: {itemDatabase.Count}개");
 
@@ -129,7 +133,9 @@ namespace DeepLearning.GameServer.Network
             {
                 Interlocked.Exchange(ref _isRunning, 0);
                 _listener?.Stop();
+                _discoverySocket?.Close();
                 _listener = null;
+                _discoverySocket = null;
                 _shutdown?.Dispose();
                 _shutdown = null;
                 EnqueueLog($"게임 서버 시작 실패: {exception.Message}", true);
@@ -146,6 +152,7 @@ namespace DeepLearning.GameServer.Network
 
             _shutdown?.Cancel();
             _listener?.Stop();
+            _discoverySocket?.Close();
 
             foreach (ClientConnection connection in _clients.Values)
             {
@@ -154,8 +161,58 @@ namespace DeepLearning.GameServer.Network
 
             _clients.Clear();
             _listener = null;
+            _discoverySocket?.Dispose();
+            _discoverySocket = null;
             _shutdown = null;
             EnqueueLog("게임 서버 종료");
+        }
+
+        private void StartDiscoveryResponder()
+        {
+            _discoverySocket = new UdpClient(AddressFamily.InterNetwork);
+            _discoverySocket.Client.SetSocketOption(
+                SocketOptionLevel.Socket,
+                SocketOptionName.ReuseAddress,
+                true);
+            _discoverySocket.Client.Bind(new IPEndPoint(IPAddress.Any, settings.discoveryPort));
+            _discoverySocket.EnableBroadcast = true;
+
+            _discoveryThread = new Thread(RespondToDiscoveryRequests)
+            {
+                IsBackground = true,
+                Name = "GameServer.Discovery"
+            };
+            _discoveryThread.Start();
+        }
+
+        private void RespondToDiscoveryRequests()
+        {
+            byte[] response = Encoding.UTF8.GetBytes(
+                GameServerSettings.DiscoveryResponsePrefix + settings.port);
+
+            while (IsRunning && _shutdown != null && !_shutdown.IsCancellationRequested)
+            {
+                try
+                {
+                    var sender = new IPEndPoint(IPAddress.Any, 0);
+                    byte[] request = _discoverySocket.Receive(ref sender);
+                    if (Encoding.UTF8.GetString(request) == GameServerSettings.DiscoveryRequest)
+                    {
+                        _discoverySocket.Send(response, response.Length, sender);
+                    }
+                }
+                catch (SocketException)
+                {
+                    if (!IsRunning)
+                    {
+                        return;
+                    }
+                }
+                catch (ObjectDisposedException)
+                {
+                    return;
+                }
+            }
         }
 
         [ContextMenu("Broadcast Current Game State")]
@@ -453,8 +510,7 @@ namespace DeepLearning.GameServer.Network
                     exception is SocketException ||
                     exception is ObjectDisposedException)
                 {
-                    EnqueueLog($"Player {connection.PlayerId} 전송 실패: {exception.Message}", true);
-                    RemovePlayer(connection.PlayerId, true);
+                    HandleFailedSend(connection, exception);
                 }
             }
         }
@@ -477,10 +533,21 @@ namespace DeepLearning.GameServer.Network
                     exception is SocketException ||
                     exception is ObjectDisposedException)
                 {
-                    EnqueueLog($"Player {connection.PlayerId} 전송 실패: {exception.Message}", true);
-                    RemovePlayer(connection.PlayerId, true);
+                    HandleFailedSend(connection, exception);
                 }
             }
+        }
+
+        private void HandleFailedSend(ClientConnection connection, Exception exception)
+        {
+            if (!_clients.ContainsKey(connection.PlayerId))
+            {
+                return;
+            }
+
+            EnqueueLog(
+                $"Player {connection.PlayerId} 연결이 끊겨 전송 대상에서 제거합니다: {exception.Message}");
+            RemovePlayer(connection.PlayerId, true);
         }
 
         private void RemovePlayer(int playerId, bool notifyPlayers)

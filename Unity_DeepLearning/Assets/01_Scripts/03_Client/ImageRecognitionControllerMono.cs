@@ -6,6 +6,8 @@ namespace DeepLearning.GameClient
 {
     public sealed class ImageRecognitionControllerMono : MonoBehaviour
     {
+        private const float DisplayedFullConfidenceThreshold = 0.995f;
+
         [SerializeField] private GameClientMono gameClient;
         [SerializeField] private WebCamFeedMono cameraFeed;
         [SerializeField] private DataBaseSO itemDatabase;
@@ -13,8 +15,8 @@ namespace DeepLearning.GameClient
         [SerializeField] private MonoBehaviour classifierSource;
 
         [Header("CNN Rule")]
-        [SerializeField, Range(0f, 1f)] private float confidenceThreshold = 0.95f;
-        [SerializeField, Min(1)] private int requiredConsecutiveFrames = 20;
+        [Tooltip("목표 물건의 인식률 100%가 유지되어야 하는 시간입니다.")]
+        [SerializeField, Min(0.1f)] private float fullConfidenceHoldSeconds = 0.5f;
         [SerializeField, Min(0f)] private float classificationInterval;
 
         [Header("Test")]
@@ -23,12 +25,24 @@ namespace DeepLearning.GameClient
 
         private IImageClassifier _classifier;
         private int _correctCount;
+        private float _fullConfidenceStartedAt = -1f;
+        private float _holdProgress;
         private float _nextClassificationTime;
         private ClassificationResult _lastResult;
 
         public int CorrectCount => _correctCount;
-        public int RequiredCount => requiredConsecutiveFrames;
+        public float HoldProgress => _holdProgress;
         public ClassificationResult LastResult => _lastResult;
+        public float TargetConfidence
+        {
+            get
+            {
+                int answerIndex = gameClient != null ? gameClient.Snapshot.AnswerIndex : -1;
+                return answerIndex >= 0 && _lastResult.ClassIndex == answerIndex
+                    ? Mathf.Clamp01(_lastResult.Confidence)
+                    : 0f;
+            }
+        }
         public string TargetLabel
         {
             get
@@ -89,22 +103,43 @@ namespace DeepLearning.GameClient
 
             int answerIndex = gameClient != null ? gameClient.Snapshot.AnswerIndex : -1;
             if (answerIndex < 0 ||
-                !_classifier.TryClassify(cameraFeed.Texture, answerIndex, out _lastResult))
+                !_classifier.TryClassify(cameraFeed.Texture, answerIndex, out ClassificationResult prediction))
             {
-                _correctCount = 0;
+                ResetRecognition();
                 return;
             }
 
-            bool correct = answerIndex >= 0 &&
-                           _lastResult.ClassIndex == answerIndex &&
-                           _lastResult.Confidence >= confidenceThreshold;
+            bool matchesTarget = prediction.ClassIndex == answerIndex;
+            _lastResult = matchesTarget
+                ? prediction
+                : new ClassificationResult(prediction.ClassIndex, prediction.Label, 0f);
 
-            _correctCount = correct ? _correctCount + 1 : 0;
+            bool displaysOneHundredPercent =
+                matchesTarget && prediction.Confidence >= DisplayedFullConfidenceThreshold;
+            if (!displaysOneHundredPercent)
+            {
+                _correctCount = 0;
+                _fullConfidenceStartedAt = -1f;
+                _holdProgress = 0f;
+                return;
+            }
 
-            if (_correctCount >= requiredConsecutiveFrames)
+            _correctCount++;
+            if (_fullConfidenceStartedAt < 0f)
+            {
+                _fullConfidenceStartedAt = Time.unscaledTime;
+            }
+
+            float holdDuration = Mathf.Max(0.1f, fullConfidenceHoldSeconds);
+            _holdProgress = Mathf.Clamp01(
+                (Time.unscaledTime - _fullConfidenceStartedAt) / holdDuration);
+
+            if (_holdProgress >= 1f)
             {
                 SubmitDetection();
                 _correctCount = 0;
+                _fullConfidenceStartedAt = -1f;
+                _holdProgress = 0f;
             }
         }
 
@@ -122,8 +157,16 @@ namespace DeepLearning.GameClient
                 clientEvent.Type == GameClientEventType.GameOver ||
                 clientEvent.Type == GameClientEventType.Disconnected)
             {
-                _correctCount = 0;
+                ResetRecognition();
             }
+        }
+
+        private void ResetRecognition()
+        {
+            _correctCount = 0;
+            _fullConfidenceStartedAt = -1f;
+            _holdProgress = 0f;
+            _lastResult = default;
         }
     }
 }
