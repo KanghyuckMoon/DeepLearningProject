@@ -20,7 +20,7 @@ namespace DeepLearning.GameServer.Core
         public int discoveryPort = 5001;
 
         [Min(1)]
-        public int winScore = 5;
+        public int winScore = 10;
 
         [Min(1)]
         [Tooltip("서버에 동시에 접속할 수 있는 최대 플레이어 수입니다.")]

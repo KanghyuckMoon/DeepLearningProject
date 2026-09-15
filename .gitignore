@@ -8,6 +8,31 @@ __pycache__/
 # YOLO / PyTorch model files
 *.pt
 
+# Jupyter
+.ipynb_checkpoints/
+
+# Unity
+Unity_DeepLearning/Library/
+Unity_DeepLearning/Temp/
+Unity_DeepLearning/Logs/
+Unity_DeepLearning/obj/
+Unity_DeepLearning/UserSettings/
+
+
+# OS / temporary files
+.DS_Store
+Thumbs.db
+:memory:.ses
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+
+# Environment variables / secrets
+.env
+.env.*
+
 # YOLO training results
 runs/
 
